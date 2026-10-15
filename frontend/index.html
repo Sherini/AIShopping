@@ -1,0 +1,475 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Shopping Assistant</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #f4f6fb;
+            color: #20243a;
+        }
+
+        header {
+            background: #252b55;
+            color: white;
+            padding: 28px 8%;
+        }
+
+        header h1 {
+            margin: 0 0 8px;
+        }
+
+        header p {
+            margin: 0;
+            color: #d9defb;
+        }
+
+        main {
+            max-width: 1200px;
+            margin: 35px auto;
+            padding: 0 20px;
+        }
+
+        .search-panel {
+            background: white;
+            padding: 25px;
+            border-radius: 14px;
+            box-shadow: 0 4px 18px #20243a12;
+        }
+
+        .search-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        input {
+            flex: 1;
+            min-width: 0;
+            padding: 14px;
+            border: 1px solid #ccd1e1;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        button {
+            border: none;
+            border-radius: 8px;
+            padding: 13px 20px;
+            background: #525bd4;
+            color: white;
+            font-size: 15px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #3c45b6;
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: wait;
+        }
+
+        .browse-button {
+            margin-top: 15px;
+            background: #e9ebff;
+            color: #303a9b;
+        }
+
+        .examples {
+            color: #646b80;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        #status {
+            margin: 22px 0;
+            color: #424a70;
+        }
+
+        .notice {
+            margin-top: 16px;
+            padding: 12px;
+            border-radius: 8px;
+            background: #fff4d6;
+            color: #765300;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .products {
+            display: grid;
+            grid-template-columns: repeat(
+                auto-fit,
+                minmax(220px, 1fr)
+            );
+            gap: 22px;
+        }
+
+        .product-card {
+            background: white;
+            border-radius: 14px;
+            overflow: hidden;
+            border: 1px solid #e7e9f2;
+            box-shadow: 0 4px 14px #20243a0b;
+            transition: transform 0.2s;
+        }
+
+        .product-card:hover {
+            transform: translateY(-4px);
+        }
+
+        .image-area {
+            width: 100%;
+            height: 220px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f8f9fd;
+        }
+
+        .product-image {
+            width: 100%;
+            height: 220px;
+            object-fit: contain;
+            padding: 12px;
+            background: white;
+        }
+
+        .image-placeholder {
+            font-size: 64px;
+        }
+
+        .product-info {
+            padding: 18px;
+        }
+
+        .product-info h3 {
+            margin: 0 0 8px;
+            line-height: 1.4;
+        }
+
+        .category {
+            color: #777d91;
+            font-size: 14px;
+        }
+
+        .price {
+            color: #313da8;
+            font-size: 23px;
+            font-weight: bold;
+            margin: 12px 0;
+        }
+
+        .description {
+            color: #5f6578;
+            line-height: 1.5;
+            font-size: 14px;
+        }
+
+        .visit-button {
+            width: 100%;
+            margin-top: 10px;
+            background: #252b55;
+        }
+
+        .visit-button:hover {
+            background: #3c45b6;
+        }
+
+        @media (max-width: 550px) {
+            .search-row {
+                flex-direction: column;
+            }
+
+            header {
+                padding: 24px 6%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>AI Shopping Assistant</h1>
+        <p>Smart product recommendations for your needs and budget.</p>
+    </header>
+
+    <main>
+        <section class="search-panel">
+            <h2>What are you looking for?</h2>
+
+            <form id="shopping-form">
+                <div class="search-row">
+                    <input
+                        id="message"
+                        type="text"
+                        placeholder="e.g. comfortable sandals under 700"
+                        required
+                    >
+
+                    <button type="submit" id="search-button">
+                        Find Products
+                    </button>
+                </div>
+            </form>
+
+            <p class="examples">
+                Try: comfortable sandals under 700,
+                headphones under 1500, or backpack under 1000.
+            </p>
+
+            <button
+                class="browse-button"
+                id="browse-button"
+                type="button"
+            >
+                Browse All Products
+            </button>
+
+            <p class="notice">
+                Comparison searches currently use demo listings.
+                Prices and product images are not verified live data.
+            </p>
+        </section>
+
+        <p id="status" role="status">Loading products...</p>
+
+        <section id="products" class="products"></section>
+    </main>
+
+    <script>
+        const form = document.getElementById("shopping-form");
+        const input = document.getElementById("message");
+        const status = document.getElementById("status");
+
+        const productContainer =
+            document.getElementById("products");
+
+        const searchButton =
+            document.getElementById("search-button");
+
+        const imageFiles = {
+            1: "mouse.jpg",
+            2: "headphones.jpg",
+            3: "tshirt.jpg",
+            4: "backpack.jpg",
+            5: "shoes.jpg"
+        };
+
+        function showProducts(items, isComparison = false) {
+            productContainer.replaceChildren();
+
+            if (!items || items.length === 0) {
+                status.textContent =
+                    "No matching products found. Try another request.";
+                return;
+            }
+
+            status.textContent = isComparison
+                ? `Found ${items.length} matching demo listing(s).`
+                : `Found ${items.length} product(s).`;
+
+            items.forEach(product => {
+                const card = document.createElement("article");
+                card.className = "product-card";
+
+                // Image area: use an image URL if available.
+                // Otherwise, show an emoji instead of a broken image.
+                const imageArea = document.createElement("div");
+                imageArea.className = "image-area";
+
+                const imageUrl = product.image_url ||
+                    (!isComparison && imageFiles[product.id]
+                        ? "/images/" + imageFiles[product.id]
+                        : null);
+
+                if (imageUrl) {
+                    const image = document.createElement("img");
+
+                    image.className = "product-image";
+                    image.src = imageUrl;
+                    image.alt = product.name;
+                    image.loading = "lazy";
+
+                    image.onerror = function () {
+                        imageArea.replaceChildren();
+
+                        const placeholder =
+                            document.createElement("span");
+
+                        placeholder.className = "image-placeholder";
+                        placeholder.textContent =
+                            isComparison ? "🩴" : "🛍️";
+
+                        imageArea.appendChild(placeholder);
+                    };
+
+                    imageArea.appendChild(image);
+                } else {
+                    const placeholder =
+                        document.createElement("span");
+
+                    placeholder.className = "image-placeholder";
+                    placeholder.textContent =
+                        isComparison ? "🩴" : "🛍️";
+
+                    imageArea.appendChild(placeholder);
+                }
+
+                card.appendChild(imageArea);
+
+                const info = document.createElement("div");
+                info.className = "product-info";
+
+                const name = document.createElement("h3");
+                name.textContent = product.name;
+
+                const store = document.createElement("p");
+                store.className = "category";
+
+                store.textContent = isComparison
+                    ? "Store: " + product.store
+                    : product.category || "";
+
+                const price = document.createElement("p");
+                price.className = "price";
+                price.textContent = `₹${product.price}`;
+
+                info.append(name, store, price);
+
+                if (isComparison) {
+                    const matched =
+                        product.preference_matches || [];
+
+                    const features = document.createElement("p");
+                    features.className = "description";
+
+                    features.textContent = matched.length
+                        ? "Matched preferences: " +
+                          matched.join(", ")
+                        : "No requested preferences matched.";
+
+                    const notice = document.createElement("p");
+                    notice.className = "description";
+
+                    notice.textContent =
+                        "DEMO LISTING — price and image are not verified.";
+
+                    info.append(features, notice);
+
+                    // Add a Visit Site button when a URL exists.
+                    if (product.product_url) {
+                        const visitButton =
+                            document.createElement("button");
+
+                        visitButton.type = "button";
+                        visitButton.className = "visit-button";
+                        visitButton.textContent = "Visit Site ↗";
+
+                        visitButton.addEventListener("click", () => {
+                            const link = document.createElement("a");
+
+                            link.href = product.product_url;
+                            link.target = "_blank";
+                            link.rel = "noopener noreferrer";
+
+                            link.click();
+                        });
+
+                        info.appendChild(visitButton);
+                    }
+                } else {
+                    const description =
+                        document.createElement("p");
+
+                    description.className = "description";
+                    description.textContent =
+                        product.description || "";
+
+                    info.appendChild(description);
+                }
+
+                card.appendChild(info);
+                productContainer.appendChild(card);
+            });
+        }
+
+        async function browseProducts() {
+            status.textContent = "Loading products...";
+            productContainer.replaceChildren();
+
+            try {
+                const response = await fetch("/products");
+
+                if (!response.ok) {
+                    throw new Error("Could not load products.");
+                }
+
+                const items = await response.json();
+
+                showProducts(items);
+            } catch (error) {
+                console.error(error);
+
+                status.textContent =
+                    "Could not connect to the backend. Check the server.";
+            }
+        }
+
+        async function searchProducts(message) {
+            if (!message.trim()) {
+                return;
+            }
+
+            status.textContent = "Comparing matching listings...";
+            productContainer.replaceChildren();
+            searchButton.disabled = true;
+
+            try {
+                const url = "/compare?message=" +
+                    encodeURIComponent(message);
+
+                const response = await fetch(url);
+
+                if (!response.ok) {
+                    throw new Error("Comparison request failed.");
+                }
+
+                const result = await response.json();
+
+                showProducts(
+                    result.recommended_products || [],
+                    true
+                );
+            } catch (error) {
+                console.error(error);
+
+                status.textContent =
+                    "Comparison failed. Check the backend and try again.";
+            } finally {
+                searchButton.disabled = false;
+            }
+        }
+
+        form.addEventListener("submit", event => {
+            event.preventDefault();
+            searchProducts(input.value);
+        });
+
+        document.getElementById("browse-button")
+            .addEventListener("click", browseProducts);
+
+        browseProducts();
+    </script>
+</body>
+</html>
